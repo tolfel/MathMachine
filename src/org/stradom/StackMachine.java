@@ -40,7 +40,7 @@ public class StackMachine {
                         if(isMath(string.substring(i+1,j))) {
                             Double result = calcExpression(string.substring(i+1,j));
                             //Если ссылка правильная, т.е. в рамках массива и число там целое
-                            if(result >= 0 && result < strings.length && (result == Math.floor(result))) {
+                            if(result-1 >= 0 && result-1 < strings.length && (result == Math.floor(result))) {
                                 //Если уже считали
                                 if(exmap.containsKey(result.intValue()-1)) {
                                     string = string.replace(string.substring(i+1,j),Double.toString(exmap.get(result.intValue()-1)));
@@ -49,12 +49,17 @@ public class StackMachine {
                                 else {
                                     //Если там строка, то считать нечего - ссылка не верна
                                     if(isMath(strings[result.intValue()-1])) {
-                                        string = string.replace(string.substring(i+1,j),Double.toString(calcExpression(strings[result.intValue()-1])));
+                                        Double r = calcExpression(strings[result.intValue()-1]);
+                                        exmap.put(result.intValue()-1,r);
+                                        string = string.replace(string.substring(i+1,j),Double.toString(r));
                                     }
                                     else {
                                         string = string.replace(string.substring(i+1,j),"Bad link!");
                                     }
                                 }
+                            }
+                            else {
+                                string = string.replace(string.substring(i+1,j),"Bad link!");
                             }
                         }
                         else {
@@ -76,6 +81,7 @@ public class StackMachine {
         Stack<Double> valuestmp = new Stack<Double>();
 
         String value = "";
+        boolean f = false;
         for (int i = 0;i < expression.length();i++)
         {
             char ch = expression.charAt(i);
@@ -105,11 +111,19 @@ public class StackMachine {
                 //Заменяем выражение в скобках его значением
                 expression = expression.replace(expression.substring(i,i+j+2),Double.toString(calcExpression(expression.substring(i+1,i+j+1))));
                 i--;
+                f = false;
             }
-            else if (ch != '+' &&  ch != '*' && ch != '/' && ch != '-')
+            else if (ch != '+' &&  ch != '*' && ch != '/' && ch != '-') {
                 //Сюда записываем все цифры, идущие вместе, чтобы в итоге получить число
                 value = value + ch;
+                f = false;
+            }
             else {
+                if(f) {
+                    System.out.println("Ошибка в выражении, выполнение прекращено!");
+                    System.exit(0);
+                }
+                f = true;
                 //Если в велью лежит шестнадцатиричное число, то упадёт NumberFormatException, тогда парсим по основанию 16
                 try {
                     values.push(Double.parseDouble(value));
