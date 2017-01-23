@@ -12,7 +12,7 @@ public class StackMachine {
     //Чтобы не считать лишний раз, будем отмечать посчитанные выражения
     //Ключ - это номер выражения, есть ключ - значит оно посчитано.
     private static Map<Integer, Double> exmap = new HashMap<Integer, Double>();
-    private static String[] trigonometric = { "sin", "cos", "tan", "ctg" };
+    private static List<String> trigonometric = new ArrayList<String>(Arrays.asList(new String[]{"sin", "cos", "tan", "ctg"}));
     private static String mathops = "+-*/";
 
     public static String process(String expressions) {
@@ -104,7 +104,7 @@ public class StackMachine {
                 }
                 operators.pop();
             }
-            else if (isOperator(token)||isFunction(token)) {
+            else if (mathops.contains(token)||trigonometric.contains(token)) {
                 while(!operators.isEmpty() &&
                         priority(operators.peek()) >= priority(token)) {
                     calculate(digits, operators.pop());
@@ -132,7 +132,7 @@ public class StackMachine {
 
         double d1;
         double d2;
-        if (isFunction(oper))
+        if (trigonometric.contains(oper))
         {
             d1 = st.pop();
             switch(oper) {
@@ -180,11 +180,6 @@ public class StackMachine {
             return 0;
         }
         else return 2;
-
-    }
-
-    private static boolean isOperator(String string) {
-        return mathops.contains(string);
     }
 
     private static boolean isMath(String string) {
@@ -193,7 +188,7 @@ public class StackMachine {
         while (stringTokenizer.hasMoreTokens())
         {
             String token = stringTokenizer.nextToken();
-            if (isFunction(token)){
+            if (trigonometric.contains(token)){
                 flag=true;
             }
             else {
@@ -210,14 +205,5 @@ public class StackMachine {
             }
         }
         return flag;
-    }
-
-    private static boolean isFunction(String tok) {
-        for (String item : trigonometric) {
-            if (item.equals(tok)) {
-                return true;
-            }
-        }
-        return false;
     }
 }
