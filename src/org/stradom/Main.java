@@ -1,6 +1,6 @@
 package org.stradom;
 
-import java.util.Scanner;
+import java.util.*;
 
 public class Main {
 

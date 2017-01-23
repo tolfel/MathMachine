@@ -1,9 +1,6 @@
 package org.stradom;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Stack;
+import java.util.*;
 
 /**
  * Created by Oleg Stradomski on 09.12.2016.
@@ -15,6 +12,8 @@ public class StackMachine {
     //Чтобы не считать лишний раз, будем отмечать посчитанные выражения
     //Ключ - это номер выражения, есть ключ - значит оно посчитано.
     private static Map<Integer, Double> exmap = new HashMap<Integer, Double>();
+    private static String[] trigonometric = { "sin", "cos", "tan", "ctg" };
+    private static String mathops = "+-*/";
 
     public static String process(String expressions) {
         strings = expressions.split(";");
@@ -34,8 +33,12 @@ public class StackMachine {
         for (int i = 0;i < string.length();i++) {
             char ch = string.charAt(i);
             if(ch == '{') {
-                for (int j = i;j < string.length();j++) {
+                for (int j = i+1;j < string.length();j++) {
                     char c = string.charAt(j);
+                    if(c == '{') {
+                        System.out.println("Ошибка в строке, выполнение прекращено!");
+                        System.exit(0);
+                    }
                     if(c == '}') {
                         if(isMath(string.substring(i+1,j))) {
                             Double result = calcExpression(string.substring(i+1,j));
@@ -44,6 +47,7 @@ public class StackMachine {
                                 //Если уже считали
                                 if(exmap.containsKey(result.intValue()-1)) {
                                     string = string.replace(string.substring(i+1,j),Double.toString(exmap.get(result.intValue()-1)));
+                                    i += Double.toString(exmap.get(result.intValue()-1)).length()+1;
                                 }
                                 //Если не считали, то посчитаем
                                 else {
@@ -52,14 +56,17 @@ public class StackMachine {
                                         Double r = calcExpression(strings[result.intValue()-1]);
                                         exmap.put(result.intValue()-1,r);
                                         string = string.replace(string.substring(i+1,j),Double.toString(r));
+                                        i += r.toString().length()+1;
                                     }
                                     else {
                                         string = string.replace(string.substring(i+1,j),"Bad link!");
+                                        i += 10;
                                     }
                                 }
                             }
                             else {
                                 string = string.replace(string.substring(i+1,j),"Bad link!");
+                                i += 10;
                             }
                         }
                         else {
@@ -70,143 +77,155 @@ public class StackMachine {
                     }
                 }
             }
+            if(ch == '}') {
+                System.out.println("Ошибка в строке, выполнение прекращено!");
+                System.exit(0);
+            }
         }
         return string;
     }
 
     private static double calcExpression(String expression) {
-        Stack<Integer> operators  = new Stack<Integer>();
-        Stack<Double> values = new Stack<Double>();
-        Stack<Integer> operatorstmp  = new Stack<Integer>();
-        Stack<Double> valuestmp = new Stack<Double>();
+        LinkedList<Double> digits = new LinkedList<>();
+        LinkedList<String> operators = new LinkedList<>();
 
-        String value = "";
-        boolean f = false;
-        for (int i = 0;i < expression.length();i++)
+        StringTokenizer stringTokenizer = new StringTokenizer(expression, mathops +"()", true);
+        while (stringTokenizer.hasMoreTokens())
         {
-            char ch = expression.charAt(i);
-            /* Если встретили открывающуюся скобку, то найдём закрывающую, вытащим выражение внутри
-            и рекурсивно применим этот же метод*/
-            if(ch == '(') {
-                String ex = expression.substring(i+1,expression.length());
-                //Считаем количество открывающих скобок, чтобы остановиться не на первой закрывающей, а на последней.
-                int flag = 0;
-                int j = 0;
-                char c = ' ';
-                while(flag != 0 && c != ')' || j < ex.length() ) {
-                    c = ex.charAt(j);
-                    if(c == '(') {
-                        flag++;
-                    }
-                    if(c == ')') {
-                        if(flag == 0) {
-                            break;
-                        }
-                        else {
-                            flag--;
-                        }
-                    }
-                    j++;
+            String token = stringTokenizer.nextToken();
+
+            if(token.equals("(")) {
+                operators.add("(");
+            }
+
+            //Если встретили закрывающуюся скобку, выполняем все операции до открывающейся, удаляя их при этом из стека
+            else if (token.equals(")")) {
+
+                while(!operators.getLast().equals("(")) {
+                    calculate(digits, operators.removeLast());
                 }
-                //Заменяем выражение в скобках его значением
-                expression = expression.replace(expression.substring(i,i+j+2),Double.toString(calcExpression(expression.substring(i+1,i+j+1))));
-                i--;
-                f = false;
+                operators.removeLast();
             }
-            else if (ch != '+' &&  ch != '*' && ch != '/' && ch != '-') {
-                //Сюда записываем все цифры, идущие вместе, чтобы в итоге получить число
-                value = value + ch;
-                f = false;
+
+            //Добавляем операторы и функции в стек и вычисляем предшествующий если приоритет больше или равен
+            else if (isOperator(token)||isFunction(token)) {
+                while(!operators.isEmpty() &&
+                        priority(operators.getLast()) >= priority(token)) {
+                    calculate(digits, operators.removeLast());
+                }
+                operators.add(token);
             }
+
+            //добавляем числа в стек
             else {
-                if(f) {
-                    System.out.println("Ошибка в выражении, выполнение прекращено!");
-                    System.exit(0);
-                }
-                f = true;
-                //Если в велью лежит шестнадцатиричное число, то упадёт NumberFormatException, тогда парсим по основанию 16
-                try {
-                    values.push(Double.parseDouble(value));
-                }
-                catch(NumberFormatException e) {
-                    value = value.replace("0x", "");
-                    values.push(new Double(Integer.parseInt(value, 16)));
-                }
-                //После окончания числа останется оператор, его пихаем в операторы
-                operators.push((int) ch);
-                value = "";
+                digits.add(Double.parseDouble(token));
             }
-        }
-        try {
-            values.push(Double.parseDouble(value));
-        }
-        catch(NumberFormatException e) {
-            value = value.replace("0x", "");
-            values.push(new Double(Integer.parseInt(value, 16)));
         }
 
-        //Будет по очереди считать каждый оператор в правильном порядке
-        //Достаём числа рядом с оператором, а не какие-нибудь первые попавшиеся
-        char mathOps[] = {'/','*','+','-'};
-        for (int i = 0; i < 4; i++)
-        {
-            boolean it = false;
-            while (!operators.isEmpty())
-            {
-                int optr = operators.pop();
-                double v1 = values.pop();
-                double v2 = values.pop();
-                if (optr == mathOps[i])
-                {
-                    if (i == 0)
-                    {
-                        valuestmp.push(v2 / v1);
-                        it = true;
-                        break;
-                    }
-                    else if (i == 1)
-                    {
-                        valuestmp.push(v2 * v1);
-                        it = true;
-                        break;
-                    }
-                    else if (i == 2)
-                    {
-                        valuestmp.push(v2 + v1);
-                        it = true;
-                        break;
-                    }
-                    else if (i == 3)
-                    {
-                        valuestmp.push(v2 - v1);
-                        it = true;
-                        break;
-                    }
-                }
-                else
-                {
-                    //Если оператор был "не тот"(Например плюс, а мы только деление рассматриваем, то пока откладываем его
-                    valuestmp.push(v1);
-                    values.push(v2);
-                    operatorstmp.push(optr);
-                }
+        //Вычисляем оставшиеся операторы
+        while(!operators.isEmpty()) {
+            try {
+                calculate(digits, operators.removeLast());
             }
-            while (!valuestmp.isEmpty())
-                values.push(valuestmp.pop());
-            while (!operatorstmp.isEmpty())
-                operators.push(operatorstmp.pop());
-            if (it)
-                i--;
+            catch (Exception e) {
+                System.out.println("Ошибка в выражении, выполнение прекращено!");
+                System.exit(0);
+            }
         }
-        return values.pop();
+
+        return digits.get(0);
+    }
+
+    private static void calculate(LinkedList<Double> st, String oper) {
+
+        double firstDigit;
+        double secondDigit;
+        if (isFunction(oper))
+        {
+            firstDigit = st.removeLast();
+            switch(oper) {
+                case "cos":
+                    st.add(Math.cos(firstDigit));
+                    break;
+                case "sin":
+                    st.add(Math.sin(firstDigit));
+                    break;
+                case "tan":
+                    st.add(Math.tan(firstDigit));
+                    break;
+                case "ctg":
+                    st.add(1/Math.tan(firstDigit));
+                    break;
+            }
+        }
+        else
+        {
+            firstDigit = st.removeLast();
+            secondDigit = st.removeLast();
+            switch(oper) {
+                case "+":
+                    st.add(secondDigit + firstDigit);
+                    break;
+                case "-":
+                    st.add(secondDigit - firstDigit);
+                    break;
+                case "*":
+                    st.add(secondDigit * firstDigit);
+                    break;
+                case "/":
+                    st.add(secondDigit / firstDigit);
+                    break;
+            }
+        }
+
+    }
+
+    private static int priority(String oper) {
+        if (oper.equals("+") || oper.equals("-")) {
+            return 1;
+        }
+        else if (oper.equals("(")||oper.equals(")")) {
+            return 0;
+        }
+        else return 2;
+
+    }
+
+    private static boolean isOperator(String tok) {
+        return mathops.contains(tok);
     }
 
     private static boolean isMath(String string) {
-        if(string.matches("^[-*+/0123456789()]+$")) {
-            return true;
+        boolean flag = false;
+        StringTokenizer stringTokenizer = new StringTokenizer(string, mathops + "()", false);
+        while (stringTokenizer.hasMoreTokens())
+        {
+            String token = stringTokenizer.nextToken();
+            if (isFunction(token)){
+                flag=true;
+            }
+            else {
+                try
+                {
+                    Double.parseDouble(token);
+                    flag=true;
+                }
+                catch (NumberFormatException e)
+                {
+                    flag=false;
+                    break;
+                }
+            }
         }
-        else {
-            return false;
+        return flag;
+    }
+
+    private static boolean isFunction(String tok) {
+        for (String item : trigonometric) {
+            if (item.equals(tok)) {
+                return true;
+            }
         }
+        return false;
     }
 }
