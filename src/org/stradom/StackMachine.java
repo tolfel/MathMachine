@@ -86,46 +86,38 @@ public class StackMachine {
     }
 
     private static double calcExpression(String expression) {
-        LinkedList<Double> digits = new LinkedList<>();
-        LinkedList<String> operators = new LinkedList<>();
+        Stack<Double> digits = new Stack<>();
+        Stack<String> operators = new Stack<>();
 
         StringTokenizer stringTokenizer = new StringTokenizer(expression, mathops +"()", true);
         while (stringTokenizer.hasMoreTokens())
         {
             String token = stringTokenizer.nextToken();
-
+            //Считаем всё, что внутри скобок
             if(token.equals("(")) {
-                operators.add("(");
+                operators.push("(");
             }
-
-            //Если встретили закрывающуюся скобку, выполняем все операции до открывающейся, удаляя их при этом из стека
             else if (token.equals(")")) {
 
-                while(!operators.getLast().equals("(")) {
-                    calculate(digits, operators.removeLast());
+                while(!operators.peek().equals("(")) {
+                    calculate(digits, operators.pop());
                 }
-                operators.removeLast();
+                operators.pop();
             }
-
-            //Добавляем операторы и функции в стек и вычисляем предшествующий если приоритет больше или равен
             else if (isOperator(token)||isFunction(token)) {
                 while(!operators.isEmpty() &&
-                        priority(operators.getLast()) >= priority(token)) {
-                    calculate(digits, operators.removeLast());
+                        priority(operators.peek()) >= priority(token)) {
+                    calculate(digits, operators.pop());
                 }
-                operators.add(token);
+                operators.push(token);
             }
-
-            //добавляем числа в стек
             else {
-                digits.add(Double.parseDouble(token));
+                digits.push(Double.parseDouble(token));
             }
         }
-
-        //Вычисляем оставшиеся операторы
         while(!operators.isEmpty()) {
             try {
-                calculate(digits, operators.removeLast());
+                calculate(digits, operators.pop());
             }
             catch (Exception e) {
                 System.out.println("Ошибка в выражении, выполнение прекращено!");
@@ -133,66 +125,66 @@ public class StackMachine {
             }
         }
 
-        return digits.get(0);
+        return digits.pop();
     }
 
-    private static void calculate(LinkedList<Double> st, String oper) {
+    private static void calculate(Stack<Double> st, String oper) {
 
-        double firstDigit;
-        double secondDigit;
+        double d1;
+        double d2;
         if (isFunction(oper))
         {
-            firstDigit = st.removeLast();
+            d1 = st.pop();
             switch(oper) {
                 case "cos":
-                    st.add(Math.cos(firstDigit));
+                    st.push(Math.cos(d1));
                     break;
                 case "sin":
-                    st.add(Math.sin(firstDigit));
+                    st.push(Math.sin(d1));
                     break;
                 case "tan":
-                    st.add(Math.tan(firstDigit));
+                    st.push(Math.tan(d1));
                     break;
                 case "ctg":
-                    st.add(1/Math.tan(firstDigit));
+                    st.push(1/Math.tan(d1));
                     break;
             }
         }
         else
         {
-            firstDigit = st.removeLast();
-            secondDigit = st.removeLast();
+            d1 = st.pop();
+            d2 = st.pop();
             switch(oper) {
                 case "+":
-                    st.add(secondDigit + firstDigit);
+                    st.push(d2 + d1);
                     break;
                 case "-":
-                    st.add(secondDigit - firstDigit);
+                    st.push(d2 - d1);
                     break;
                 case "*":
-                    st.add(secondDigit * firstDigit);
+                    st.push(d2 * d1);
                     break;
                 case "/":
-                    st.add(secondDigit / firstDigit);
+                    st.push(d2 / d1);
                     break;
             }
         }
 
     }
 
-    private static int priority(String oper) {
-        if (oper.equals("+") || oper.equals("-")) {
+    private static int priority(String operator) {
+        if (operator.equals("+") || operator.equals("-")) {
             return 1;
         }
-        else if (oper.equals("(")||oper.equals(")")) {
+        else if (operator.equals("(")||operator.equals(")")) {
             return 0;
         }
         else return 2;
 
     }
 
-    private static boolean isOperator(String tok) {
-        return mathops.contains(tok);
+    private static boolean isOperator(String string) {
+        return mathops.contains(string);
     }
 
     private static boolean isMath(String string) {
